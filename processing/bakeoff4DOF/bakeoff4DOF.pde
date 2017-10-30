@@ -21,7 +21,11 @@ float screenTransY = 0; //current y coord of the cursor square (center)
 float screenRotation = 0;
 float screenZ = 50f;
 
-boolean holdingCorner;
+// new created global variables
+boolean initialCheck = false;
+boolean secondCheck = false;
+int redT = 255, blueT = 0, greenT = 0;
+int redS = 0, blueS = 255, greenS = 127;
 
 private class Target
 {
@@ -39,7 +43,7 @@ float inchesToPixels(float inch)
 }
 
 void setup() {
-  size(800,800); 
+  size(800, 800); 
 
   rectMode(CENTER);
   textFont(createFont("Arial", inchesToPixels(.2f))); //sets the font to Arial that is .3" tall
@@ -48,10 +52,8 @@ void setup() {
   //don't change this! 
   border = inchesToPixels(.2f); //padding of 0.2 inches
   
-  holdingCorner = false;
-  
-  for (int i=0; i<trialCount; i++) //don't change this! 
-  {
+  for (int i=0; i < trialCount; i++) //don't change this! 
+  {    
     Target t = new Target();
     t.x = random(-width/2+border, width/2-border); //set a random x with some padding
     t.y = random(-height/2+border, height/2-border); //set a random y with some padding
@@ -59,13 +61,11 @@ void setup() {
     int j = (int)random(20);
     t.z = ((j%20)+1)*inchesToPixels(.15f); //increasing size from .15 up to 3.0" 
     targets.add(t);
-    println("created target with " + t.x + "," + t.y + "," + t.rotation + "," + t.z);
+    //println("created target with " + t.x + "," + t.y + "," + t.rotation + "," + t.z);
   }
 
   Collections.shuffle(targets); // randomize the order of the button; don't change this.
 }
-
-
 
 void draw() {
 
@@ -89,10 +89,33 @@ void draw() {
   Target t = targets.get(trialIndex);
   translate(t.x, t.y); //center the drawing coordinates to the center of the screen
   rotate(radians(t.rotation));
-  fill(255, 0, 0); //set color to semi translucent
+  fill(redT, blueT, greenT); //set color to semi translucent
   rect(0, 0, t.z, t.z);
   popMatrix();
-
+  
+  //===========DRAW SHADOW TARGET SQUARE=================
+  if (!secondCheck) {
+    pushMatrix();
+    translate(width/2, height/2); //center the drawing coordinates to the center of the screen
+    translate(screenTransX, screenTransY); //center the drawing coordinates to the center of the screen
+    rotate(radians(t.rotation));
+    fill(redS, blueS, greenS); //green
+    if (!initialCheck) {
+      rect(0, 0, 200.0, 200.0);
+      stroke(46, 139, 87);
+      line(-width/2, -height/2, width/2, height/2);
+      line(-width/2, height/2, width/2, -height/2);
+    } else {
+      rect(0, 0, t.z, t.z);
+    }
+    popMatrix();
+  }
+  
+  if (secondCheck) {
+    stroke(255, 215, 0); // yellow
+    line(width/2 + screenTransX, height/2 + screenTransY, width/2 + t.x, height/2 + t.y);
+  }
+  
   //===========DRAW CURSOR SQUARE=================
   pushMatrix();
   translate(width/2, height/2); //center the drawing coordinates to the center of the screen
@@ -102,25 +125,15 @@ void draw() {
   strokeWeight(3f);
   stroke(160);
   rect(0,0, screenZ, screenZ);
+  if (!initialCheck) {
+    line(-width/2, -height/2, width/2, height/2);
+    line(-width/2, height/2, width/2, -height/2);
+  }
   popMatrix();
   
     //===========DRAW EXAMPLE CONTROLS=================
   fill(255);
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchesToPixels(.5f));
-}
-
-//on cursor square. bottom left corner.
-void dragSquareCorner() {
-  //float margin = 7;
-  //drag bottom left corner
-  holdingCorner = true;
-  screenZ = 2*sqrt(pow((mouseY-(height/2)), 2)+pow((mouseX-(width/2)), 2));
-  pushMatrix();
-  translate(width/2, height/2);
-  screenRotation = atan2(mouseY-height/2, mouseX-width/2);
-  popMatrix();
-  checkRotation(targets.get(trialIndex));
-  checkZ(targets.get(trialIndex)); 
 }
 
 void mousePressed()
@@ -134,15 +147,30 @@ void mousePressed()
 
 
 void mouseReleased()
-{
-  //check to see if user clicked middle of screen within 3 inches
+{  
   Target t = targets.get(trialIndex);
-  if (dist(t.x, t.y, mouseX, mouseY)<inchesToPixels(3f))
-  {
-    //PUT THIS BACK IN
-    /*if (userDone==false && !checkForSuccess())
-      errorCount++; 
-
+  
+  if (!initialCheck && checkRotation(t)) {
+    initialCheck = true;
+    redS = 0;
+    blueS = 255;
+    greenS = 127;
+    return;
+  }
+  
+  if (initialCheck && !secondCheck && checkZ(t)) {
+    secondCheck = true;
+    redS = 0;
+    blueS = 255;
+    greenS = 127;
+    return;
+  }
+  
+  if (initialCheck && secondCheck) {
+    if (userDone==false && !checkForSuccess()) {
+      errorCount++;
+    }
+    
     //and move on to next trial
     trialIndex++;
     
@@ -150,28 +178,71 @@ void mouseReleased()
     {
       userDone = true;
       finishTime = millis();
-    }*/
-  }
-  if(holdingCorner) {
-    holdingCorner = false;
+    }
+    
+    initialCheck = false;
+    secondCheck = false;
+    
+    screenTransX = 0;
+    screenTransY = 0;
+    
+    redT = 255;
+    blueT = 0;
+    greenT = 0;
   }
 }
 
 void mouseDragged() {
-  dragSquareCorner();
+  Target t = targets.get(trialIndex);
+  if (!initialCheck) {
+    screenRotation = atan2(mouseY-height/2, mouseX-width/2);
+    if (checkRotation(t)) {
+      redS = 255;
+      blueS = 0;
+      greenS = 0;
+    } else {
+      redS = 0;
+      blueS = 255;
+      greenS = 127;
+    }
+  } else if (!secondCheck) {
+    screenZ = 2*sqrt(pow((mouseY-(height/2)), 2)+pow((mouseX-(width/2)), 2));
+    if (checkZ(t)) {
+      redS = 255;
+      blueS = 0;
+      greenS = 0;
+    } else {
+      redS = 0;
+      blueS = 255;
+      greenS = 127;
+    }
+  } else {
+    screenTransX = mouseX - width/2;
+    screenTransY = mouseY - height/2;
+    if (checkDistance(t)) {
+      redT = 0;
+      blueT = 255;
+      greenT = 127;
+    } else {
+      redT = 255;
+      blueT = 0;
+      greenT = 0;
+    }
+  }
 }
   
 boolean checkDistance(Target t) {
   return dist(t.x,t.y,screenTransX,screenTransY)<inchesToPixels(.05f); //has to be within .1"
 }
 boolean checkRotation(Target t) {
-  return calculateDifferenceBetweenAngles(t.rotation,screenRotation)<=5;
+  // I've modified it, since screenRotation shows in pi not degrees
+  return calculateDifferenceBetweenAngles(t.rotation,degrees(screenRotation))<=5;
 }
 //z is size
 boolean checkZ(Target t) {
   return abs(t.z - screenZ)<inchesToPixels(.05f); //has to be within .1"
 }
-
+  
 //control the initial bottom left corner of cursor square
 void getCursorSquareSide() {
   float xdiff = pow(mouseX-(width/2), 2);
@@ -200,10 +271,10 @@ public boolean checkForSuccess()
 //utility function I include
 double calculateDifferenceBetweenAngles(float a1, float a2)
 {
-     double diff=abs(a1-a2);
-      diff%=90;
-      if (diff>45)
-        return 90-diff;
-      else
-        return diff;
+  double diff=abs(a1-a2);
+  diff%=90;
+  if (diff>45)
+    return 90-diff;
+  else
+    return diff;
  }
