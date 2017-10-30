@@ -173,6 +173,9 @@ void mouseReleased()
     
     //and move on to next trial
     trialIndex++;
+    //reset
+    screenZ = 50f;
+    screenRotation = 0; 
     
     if (trialIndex==trialCount && userDone==false)
     {
