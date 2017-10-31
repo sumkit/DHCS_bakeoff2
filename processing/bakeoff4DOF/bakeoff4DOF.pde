@@ -21,11 +21,17 @@ float screenTransY = 0; //current y coord of the cursor square (center)
 float screenRotation = 0;
 float screenZ = 50f;
 
+float startClickX;
+float startClickY;
+boolean doubleClick = false;
+float lastClick = 0f;
+
 // new created global variables
 boolean initialCheck = false;
 boolean secondCheck = false;
-int redT = 255, blueT = 0, greenT = 0;
-int redS = 0, blueS = 255, greenS = 127;
+int redT = 255, blueT = 0, greenT = 0; //target
+int redS = 255, blueS = 0, greenS = 0; //shadow
+boolean mouseInSquare = false; //can move cursor square
 
 private class Target
 {
@@ -43,7 +49,7 @@ float inchesToPixels(float inch)
 }
 
 void setup() {
-  size(800, 800); 
+  size(700, 700); 
 
   rectMode(CENTER);
   textFont(createFont("Arial", inchesToPixels(.2f))); //sets the font to Arial that is .3" tall
@@ -51,7 +57,7 @@ void setup() {
 
   //don't change this! 
   border = inchesToPixels(.2f); //padding of 0.2 inches
-  
+    
   for (int i=0; i < trialCount; i++) //don't change this! 
   {    
     Target t = new Target();
@@ -83,15 +89,17 @@ void draw() {
     return;
   }
 
-  //===========DRAW TARGET SQUARE=================
-  pushMatrix();
-  translate(width/2, height/2); //center the drawing coordinates to the center of the screen
   Target t = targets.get(trialIndex);
-  translate(t.x, t.y); //center the drawing coordinates to the center of the screen
-  rotate(radians(t.rotation));
-  fill(redT, blueT, greenT); //set color to semi translucent
-  rect(0, 0, t.z, t.z);
-  popMatrix();
+  //===========DRAW TARGET SQUARE=================
+  if (secondCheck) {
+    pushMatrix();
+    translate(width/2, height/2); //center the drawing coordinates to the center of the screen
+    translate(t.x, t.y); //center the drawing coordinates to the center of the screen
+    rotate(radians(t.rotation));
+    fill(redT, blueT, greenT); //set color to semi translucent
+    rect(0, 0, t.z, t.z);
+    popMatrix();
+  }
   
   //===========DRAW SHADOW TARGET SQUARE=================
   if (!secondCheck) {
@@ -99,13 +107,24 @@ void draw() {
     translate(width/2, height/2); //center the drawing coordinates to the center of the screen
     translate(screenTransX, screenTransY); //center the drawing coordinates to the center of the screen
     rotate(radians(t.rotation));
-    fill(redS, blueS, greenS); //green
     if (!initialCheck) {
+      if(!checkRotation(t)) {
+        redS = 255;
+        blueS = 0;
+        greenS = 0;
+      }
+      fill(redS, blueS, greenS); //blue and green variable names are flipped
       rect(0, 0, 200.0, 200.0);
       stroke(46, 139, 87);
       line(-width/2, -height/2, width/2, height/2);
       line(-width/2, height/2, width/2, -height/2);
     } else {
+      if(!checkZ(t)) {
+        redS = 255;
+        blueS = 0;
+        greenS = 0;
+      }
+      fill(redS, blueS, greenS); //blue and green variable names are flipped
       rect(0, 0, t.z, t.z);
     }
     popMatrix();
@@ -121,6 +140,7 @@ void draw() {
   translate(width/2, height/2); //center the drawing coordinates to the center of the screen
   translate(screenTransX, screenTransY);
   rotate(screenRotation);
+  //rotate(radians(screenRotation));
   noFill();
   strokeWeight(3f);
   stroke(160);
@@ -136,6 +156,12 @@ void draw() {
   text("Trial " + (trialIndex+1) + " of " +trialCount, width/2, inchesToPixels(.5f));
 }
 
+boolean mouseInCursorSquare() {
+  float radius = dist((width/2)+screenTransX, (height/2)+screenTransY, (width/2)+screenTransX-(screenZ/2), (height/2)+screenTransY-(screenZ/2));
+  float thisDist = dist(mouseX, mouseY, (width/2)+screenTransX, (height/2)+screenTransY);
+  return thisDist <= radius;
+}
+
 void mousePressed()
 {
     if (startTime == 0) //start time on the instant of the first user click
@@ -143,83 +169,108 @@ void mousePressed()
       startTime = millis();
       println("time started!");
     }
+    
+    if(millis()-lastClick < 1000) {
+      doubleClick = true;
+    }
+    lastClick = millis();
+    
+    startClickX = mouseX;
+    startClickY = mouseY;
+    mouseInSquare = mouseInCursorSquare();
 }
 
+void nextTrial() {
+  if (userDone==false && !checkForSuccess()) {
+    errorCount++;
+  }
+  
+  //and move on to next trial
+  trialIndex++;
+  //reset
+  screenZ = 50f;
+  screenRotation = 0; 
+  
+  if (trialIndex==trialCount && userDone==false)
+  {
+    userDone = true;
+    finishTime = millis();
+  }
+  
+  initialCheck = false;
+  secondCheck = false;
+  
+  screenTransX = 0;
+  screenTransY = 0;
+  
+  redT = 255;
+  blueT = 0;
+  greenT = 0;
+}
 
 void mouseReleased()
 {  
-  Target t = targets.get(trialIndex);
+  if(trialIndex >= trialCount) return;
+  if(doubleClick) {
+    //double click to skip
+    nextTrial();
+    doubleClick = false;
+    lastClick = 0f;
+    return;
+  }
   
-  if (!initialCheck && checkRotation(t)) {
+  //Target t = targets.get(trialIndex);
+  
+  if (!initialCheck) {
+    //rotation phase
     initialCheck = true;
-    redS = 0;
-    blueS = 255;
-    greenS = 127;
     return;
-  }
-  
-  if (initialCheck && !secondCheck && checkZ(t)) {
+  } else if (initialCheck && !secondCheck) {
+    //size/Z phase
+    if(!mouseInSquare) return;
     secondCheck = true;
-    redS = 0;
-    blueS = 255;
-    greenS = 127;
     return;
-  }
-  
-  if (initialCheck && secondCheck) {
-    if (userDone==false && !checkForSuccess()) {
-      errorCount++;
-    }
-    
-    //and move on to next trial
-    trialIndex++;
-    //reset
-    screenZ = 50f;
-    screenRotation = 0; 
-    
-    if (trialIndex==trialCount && userDone==false)
-    {
-      userDone = true;
-      finishTime = millis();
-    }
-    
-    initialCheck = false;
-    secondCheck = false;
-    
-    screenTransX = 0;
-    screenTransY = 0;
-    
-    redT = 255;
-    blueT = 0;
-    greenT = 0;
+  } else if (initialCheck && secondCheck) {
+    //(x, y) phase
+    nextTrial();
   }
 }
 
 void mouseDragged() {
+  if(trialIndex >= trialCount) return;
   Target t = targets.get(trialIndex);
+  
   if (!initialCheck) {
-    screenRotation = atan2(mouseY-height/2, mouseX-width/2);
+    //rotation phase
+    float endDiff = atan2(mouseY-(height/2), mouseX-(width/2));
+    float startDiff = atan2(startClickY-(height/2), startClickX-(width/2));
+    screenRotation = endDiff - startDiff;
+    
     if (checkRotation(t)) {
-      redS = 255;
-      blueS = 0;
-      greenS = 0;
-    } else {
       redS = 0;
       blueS = 255;
       greenS = 127;
+    } else {
+      redS = 255;
+      blueS = 0;
+      greenS = 0;
     }
   } else if (!secondCheck) {
+    //size/Z phase
+    if(!mouseInSquare) return;
     screenZ = 2*sqrt(pow((mouseY-(height/2)), 2)+pow((mouseX-(width/2)), 2));
     if (checkZ(t)) {
-      redS = 255;
-      blueS = 0;
-      greenS = 0;
-    } else {
       redS = 0;
       blueS = 255;
       greenS = 127;
+    } else {
+      redS = 255;
+      blueS = 0;
+      greenS = 0;
     }
   } else {
+    //transition (x, y) phase
+    if(!mouseInSquare) return;
     screenTransX = mouseX - width/2;
     screenTransY = mouseY - height/2;
     if (checkDistance(t)) {
@@ -237,23 +288,13 @@ void mouseDragged() {
 boolean checkDistance(Target t) {
   return dist(t.x,t.y,screenTransX,screenTransY)<inchesToPixels(.05f); //has to be within .1"
 }
+//screenRotation in degrees, not radians
 boolean checkRotation(Target t) {
-  // I've modified it, since screenRotation shows in pi not degrees
   return calculateDifferenceBetweenAngles(t.rotation,degrees(screenRotation))<=5;
 }
 //z is size
 boolean checkZ(Target t) {
   return abs(t.z - screenZ)<inchesToPixels(.05f); //has to be within .1"
-}
-  
-//control the initial bottom left corner of cursor square
-void getCursorSquareSide() {
-  float xdiff = pow(mouseX-(width/2), 2);
-  float ydiff = pow(mouseY-(height/2), 2);
-  float diag = sqrt(xdiff + ydiff);
-  diag *= 2;
-  float side = sqrt(pow(diag, 2)/2);
-  screenZ = side;
 }
 
 //probably shouldn't modify this, but email me if you want to for some good reason.
@@ -265,7 +306,7 @@ public boolean checkForSuccess()
 	boolean closeZ = checkZ(t);	
 	
   println("Close Enough Distance: " + closeDist + " (cursor X/Y = " + t.x + "/" + t.y + ", target X/Y = " + screenTransX + "/" + screenTransY +")");
-  println("Close Enough Rotation: " + closeRotation + " (rot dist="+calculateDifferenceBetweenAngles(t.rotation,screenRotation)+")");
+  println("Close Enough Rotation: " + closeRotation + " (rot dist="+calculateDifferenceBetweenAngles(t.rotation,degrees(screenRotation))+")");
  	println("Close Enough Z: " +  closeZ + " (cursor Z = " + t.z + ", target Z = " + screenZ +")");
 	
 	return closeDist && closeRotation && closeZ;	
