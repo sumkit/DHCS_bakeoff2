@@ -96,6 +96,15 @@ void draw() {
     translate(width/2, height/2); //center the drawing coordinates to the center of the screen
     translate(t.x, t.y); //center the drawing coordinates to the center of the screen
     rotate(radians(t.rotation));
+    if(checkDistance(t)) {
+      redT = 0;
+      blueT = 255;
+      greenT = 127;
+    } else { 
+      redT = 255;
+      blueT = 0;
+      greenT = 0;
+    }
     fill(redT, blueT, greenT); //set color to semi translucent
     rect(0, 0, t.z, t.z);
     popMatrix();
@@ -108,18 +117,26 @@ void draw() {
     translate(screenTransX, screenTransY); //center the drawing coordinates to the center of the screen
     rotate(radians(t.rotation));
     if (!initialCheck) {
-      if(!checkRotation(t)) {
+      if(checkRotation(t)) {
+        redS = 0;
+        blueS = 255;
+        greenS = 127;
+      } else {
         redS = 255;
         blueS = 0;
         greenS = 0;
       }
       fill(redS, blueS, greenS); //blue and green variable names are flipped
-      rect(0, 0, 200.0, 200.0);
+      rect(0, 0, 150f, 150f); //make square fixed size for rotation for visibility purposes
       stroke(46, 139, 87);
       line(-width/2, -height/2, width/2, height/2);
       line(-width/2, height/2, width/2, -height/2);
     } else {
-      if(!checkZ(t)) {
+      if(checkZ(t)) {
+        redS = 0;
+        blueS = 255;
+        greenS = 127;
+      } else {
         redS = 255;
         blueS = 0;
         greenS = 0;
@@ -232,6 +249,7 @@ void mouseReleased()
     return;
   } else if (initialCheck && secondCheck) {
     //(x, y) phase
+    if(!mouseInSquare) return;
     nextTrial();
   }
 }
