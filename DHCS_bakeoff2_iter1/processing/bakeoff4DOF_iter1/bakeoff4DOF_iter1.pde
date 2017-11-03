@@ -102,6 +102,10 @@ void draw() {
       red = 0;
       blue = 255;
       green = 127;
+    } else {
+      red = 255;
+      blue = 0;
+      green = 0;
     }
     pushMatrix();
     translate(width/2, height/2); //center the drawing coordinates to the center of the screen
@@ -118,6 +122,10 @@ void draw() {
       red = 0;
       blue = 255;
       green = 127;
+    } else {
+      red = 255;
+      blue = 0;
+      green = 0;
     }
     pushMatrix();
     translate(width/2, height/2); //center the drawing coordinates to the center of the screen
@@ -177,7 +185,18 @@ void dragSquareCorner() {
     red = 0;
     blue = 255;
     green = 127;
-  } 
+  } else {
+    red = 255;
+    blue = 0;
+    green = 0;
+  }
+}
+
+boolean mouseInTargetSquare() {
+  Target t = targets.get(trialIndex);
+  float radius = dist(t.x, t.y, t.x+t.z, t.y+t.z);
+  float thisDist = dist(mouseX, mouseY, (width/2)+screenTransX, (height/2)+screenTransY);
+  return thisDist <= radius;
 }
 
 boolean mouseInCursorSquare() {
@@ -193,15 +212,17 @@ void mousePressed()
     startTime = millis();
     println("time started!");
   }
+  
+  float doubleDist = 5f;
+  if(millis()-lastClick < 500 && abs(mouseX - startClickX) < doubleDist && abs(mouseY - startClickY) < doubleDist) {
+    doubleClick = true;
+  }
+  lastClick = millis();
+  
   startClickX = mouseX;
   startClickY = mouseY;
   
   mouseInSquare = mouseInCursorSquare();
-  
-  if(millis()-lastClick < 1000) {
-    doubleClick = true;
-  }
-  lastClick = millis();
 }
 
 void nextTrial() {
@@ -233,16 +254,18 @@ void mouseReleased()
   if(trialIndex >= trialCount) return;
   if(doubleClick) {
     //double click to skip
-    nextTrial();
+    if(mouseInTargetSquare()) {
+      if(rotationSizePhase && mouseInSquare) {
+        rotationSizePhase = false;
+        xyPhase = true;
+      } else if(xyPhase && mouseInSquare) {
+        nextTrial();
+      }
+    } else {
+      nextTrial();
+    }
     doubleClick = false;
     lastClick = 0;
-    return;
-  }
-  if(rotationSizePhase && mouseInSquare) {
-    rotationSizePhase = false;
-    xyPhase = true;
-  } else if(xyPhase && mouseInSquare) {
-    nextTrial();
   }
   mouseInSquare = false;
 }
